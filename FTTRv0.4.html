@@ -1,0 +1,3096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fast Relational Reasoning Training</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --bg-panel: #1a1a25;
+            --accent-cyan: #00f0ff;
+            --accent-magenta: #ff00aa;
+            --accent-gold: #ffd700;
+            --accent-green: #00ff88;
+            --accent-red: #ff3355;
+            --text-primary: #ffffff;
+            --text-secondary: #8888aa;
+            --glow-cyan: 0 0 20px rgba(0, 240, 255, 0.5);
+            --glow-magenta: 0 0 20px rgba(255, 0, 170, 0.5);
+            --glow-gold: 0 0 20px rgba(255, 215, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(ellipse at 20% 80%, rgba(0, 240, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(255, 0, 170, 0.05) 0%, transparent 50%);
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.1) 2px,
+                rgba(0, 0, 0, 0.1) 4px
+            );
+            pointer-events: none;
+            z-index: 9999;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        .stat-value.score {
+            color: var(--accent-gold);
+        }
+
+        .stat-value.streak {
+            color: var(--accent-green);
+        }
+
+        .menu-btn {
+            background: transparent;
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 10px 20px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-btn:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+            box-shadow: var(--glow-cyan);
+        }
+
+        /* Main Game Area */
+        .game-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+        }
+
+        /* Level & Progress */
+        .progress-section {
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .level-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .level-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: var(--accent-magenta);
+        }
+
+        .mechanic-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: var(--bg-panel);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-cyan), var(--accent-magenta));
+            transition: width 0.3s ease;
+        }
+
+        /* Timer Bar */
+        .timer-container {
+            width: 100%;
+            max-width: 600px;
+            height: 6px;
+            background: var(--bg-panel);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .timer-fill {
+            height: 100%;
+            background: var(--accent-cyan);
+            transition: width linear, background-color 0.3s;
+        }
+
+        .timer-fill.warning {
+            background: var(--accent-gold);
+        }
+
+        .timer-fill.danger {
+            background: var(--accent-red);
+        }
+
+        /* Card Display Area */
+        .card-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            min-height: 400px;
+            justify-content: center;
+        }
+
+        .premise-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .card {
+            width: 120px;
+            height: 168px;
+            background: #ffffff;
+            border: 3px solid rgba(0, 240, 255, 0.3);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .card.active {
+            border-color: var(--accent-cyan);
+            box-shadow: var(--glow-cyan), 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: cardPulse 1s ease-in-out infinite;
+        }
+
+        @keyframes cardPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+
+        .card svg {
+            width: 70%;
+            height: 70%;
+        }
+
+        /* Single card display (sequential) */
+        .single-card {
+            width: 180px;
+            height: 252px;
+            animation: cardAppear 0.2s ease-out;
+        }
+
+        .single-card svg {
+            width: 75%;
+            height: 75%;
+        }
+
+        /* Full premise display */
+        .premise-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
+            animation: premiseAppear 0.3s ease-out;
+        }
+
+        .premise-card {
+            width: 100px;
+            height: 140px;
+        }
+
+        .premise-card svg {
+            width: 70%;
+            height: 70%;
+        }
+
+        .premise-relation {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            color: var(--accent-magenta);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            min-width: 150px;
+            text-align: center;
+        }
+
+        .premise-relation-symbol {
+            font-family: 'Segoe UI Symbol', 'Arial Unicode MS', sans-serif;
+            font-size: 3rem;
+            font-weight: bold;
+            color: var(--accent-magenta);
+            min-width: 80px;
+            text-align: center;
+            text-shadow: 0 0 10px var(--accent-magenta);
+        }
+
+        @keyframes premiseAppear {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes cardAppear {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Large relation text (sequential) */
+        .relation-text-large {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--accent-magenta);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            animation: textAppear 0.2s ease-out;
+        }
+
+        @keyframes textAppear {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .relation-text {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9rem;
+            color: var(--accent-magenta);
+            padding: 10px 20px;
+            background: var(--bg-panel);
+            border-radius: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        /* Question Display */
+        .question-container {
+            display: none; /* Now using inline questions in card area */
+        }
+
+        .question-container.visible {
+            display: none;
+        }
+
+        .question-text {
+            font-size: 1.4rem;
+            font-weight: 500;
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .question-text .inline-symbol {
+            display: inline-flex;
+            width: 40px;
+            height: 40px;
+            vertical-align: middle;
+        }
+
+        .question-text .inline-symbol svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Answer Buttons - original (now hidden, using inline) */
+        .answer-buttons {
+            display: none;
+        }
+
+        .answer-btn {
+            padding: 20px 60px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border: 2px solid;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .answer-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .answer-btn:hover::before {
+            left: 100%;
+        }
+
+        .answer-btn.true {
+            background: transparent;
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .answer-btn.true:hover {
+            background: var(--accent-green);
+            color: var(--bg-dark);
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.5);
+        }
+
+        .answer-btn.false {
+            background: transparent;
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .answer-btn.false:hover {
+            background: var(--accent-red);
+            color: var(--bg-dark);
+            box-shadow: 0 0 30px rgba(255, 51, 85, 0.5);
+        }
+
+        .answer-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Feedback Flash */
+        .feedback-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.1s ease;
+        }
+
+        .feedback-overlay.correct {
+            background: radial-gradient(ellipse at center, rgba(0, 255, 136, 0.3) 0%, transparent 70%);
+            opacity: 1;
+        }
+
+        .feedback-overlay.incorrect {
+            background: radial-gradient(ellipse at center, rgba(255, 51, 85, 0.3) 0%, transparent 70%);
+            opacity: 1;
+        }
+
+        /* Points Popup */
+        .points-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            font-weight: 900;
+            pointer-events: none;
+            z-index: 101;
+            opacity: 0;
+            text-shadow: 0 0 30px currentColor;
+        }
+
+        .points-popup.show {
+            animation: pointsAnim 1s ease-out forwards;
+        }
+
+        .points-popup.positive {
+            color: var(--accent-gold);
+        }
+
+        .points-popup.negative {
+            color: var(--accent-red);
+        }
+
+        @keyframes pointsAnim {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+            100% { opacity: 0; transform: translate(-50%, -100%) scale(1); }
+        }
+
+        /* Start Screen */
+        .start-screen {
+            text-align: center;
+            max-width: 600px;
+        }
+
+        .start-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+
+        .start-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .start-btn {
+            padding: 20px 60px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.3rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-magenta));
+            border: none;
+            border-radius: 8px;
+            color: var(--bg-dark);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 40px rgba(0, 240, 255, 0.5);
+        }
+
+        .saved-progress {
+            margin: 25px 0;
+            padding: 20px 30px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 12px;
+            display: none;
+        }
+
+        .saved-progress.visible {
+            display: block;
+        }
+
+        .saved-progress-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+        }
+
+        .saved-progress-stats {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+        }
+
+        .saved-progress-stat {
+            text-align: center;
+        }
+
+        .saved-progress-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .saved-progress-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        /* Block Complete Screen */
+        .block-complete {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .block-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            color: var(--accent-gold);
+            margin-bottom: 30px;
+        }
+
+        .block-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .block-stat {
+            background: var(--bg-panel);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .block-stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .block-stat-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-panel);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 16px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 40px;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 2rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .modal-close:hover {
+            color: var(--accent-cyan);
+        }
+
+        .modal-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.8rem;
+            color: var(--accent-cyan);
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+
+        .guide-section {
+            margin-bottom: 30px;
+        }
+
+        .guide-section h3 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1rem;
+            color: var(--accent-magenta);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .guide-section p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 10px;
+        }
+
+        .guide-section code {
+            background: var(--bg-dark);
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: var(--accent-cyan);
+            font-family: monospace;
+        }
+
+        .relation-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .relation-item {
+            background: var(--bg-dark);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid var(--accent-cyan);
+        }
+
+        .relation-item strong {
+            color: var(--accent-cyan);
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .relation-item span {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .symbol-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .symbol-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: var(--bg-dark);
+            border-radius: 6px;
+        }
+
+        .symbol-char {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-magenta);
+            min-width: 30px;
+            text-align: center;
+        }
+
+        /* Statistics Modal */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stats-card {
+            background: var(--bg-dark);
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stats-card-value {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            margin-bottom: 5px;
+        }
+
+        .stats-card-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+
+        /* Menu Buttons in Modal */
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .menu-action-btn {
+            padding: 15px 30px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: var(--bg-dark);
+            border: 1px solid var(--accent-cyan);
+            border-radius: 8px;
+            color: var(--accent-cyan);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .menu-action-btn:hover {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+        }
+
+        .menu-action-btn.danger {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .menu-action-btn.danger:hover {
+            background: var(--accent-red);
+            color: var(--bg-dark);
+        }
+
+        /* Keyboard hints */
+        .keyboard-hint {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .key {
+            display: inline-block;
+            padding: 4px 10px;
+            background: var(--bg-panel);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            margin: 0 5px;
+            font-family: monospace;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .header-stats {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .card {
+                width: 80px;
+                height: 112px;
+            }
+
+            .question-text {
+                font-size: 1.1rem;
+            }
+
+            .answer-btn {
+                padding: 15px 40px;
+                font-size: 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Hidden state for trials */
+        .hidden { display: none !important; }
+
+        /* Memory prompt after stimulus disappears */
+        .memory-prompt {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 60px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Inline question (replaces cards) */
+        .question-inline {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 30px;
+            animation: fadeIn 0.3s ease;
+            padding: 40px;
+        }
+
+        .question-inline .question-text {
+            font-size: 1.5rem;
+            font-weight: 500;
+            line-height: 1.6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            color: var(--text-primary);
+        }
+
+        /* Red NOT for negation emphasis */
+        .negation-text {
+            color: var(--accent-red);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .question-inline .inline-symbol {
+            display: inline-flex;
+            width: 50px;
+            height: 50px;
+            vertical-align: middle;
+        }
+
+        .question-inline .inline-symbol svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .answer-buttons-inline {
+            display: flex;
+            gap: 30px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Stimulus phase indicator */
+        .phase-indicator {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    
+        .mode-select{
+            display:flex;
+            gap:10px;
+            justify-content:center;
+            margin: 18px 0 8px 0;
+            flex-wrap:wrap;
+        }
+        .mode-btn{
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.9);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .mode-btn.active{
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 0 3px rgba(0, 245, 255, 0.15);
+        }
+
+        .deictic-premise{
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            min-height: 140px;
+            padding: 16px 18px;
+            text-align:center;
+            font-size: 20px;
+            line-height: 1.4;
+            background: rgba(255,255,255,0.06);
+            border: 2px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            backdrop-filter: blur(6px);
+        }
+        .inline-symbol{
+            width: 44px;
+            height: 44px;
+            margin: 0 4px;
+        }
+
+</style>
+</head>
+<body>
+    <div class="feedback-overlay" id="feedbackOverlay"></div>
+    <div class="points-popup" id="pointsPopup"></div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">RFT Trainer</div>
+            <div class="header-stats" id="headerStats">
+                <div class="stat-box">
+                    <div class="stat-label">Score</div>
+                    <div class="stat-value score" id="scoreDisplay">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Level</div>
+                    <div class="stat-value" id="levelDisplay">1</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Streak</div>
+                    <div class="stat-value streak" id="streakDisplay">0</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-label">Block</div>
+                    <div class="stat-value" id="blockProgress">0/20</div>
+                </div>
+            </div>
+            <button class="menu-btn" id="menuBtn">Menu</button>
+        </header>
+
+        <main class="game-area" id="gameArea">
+            <!-- Start Screen -->
+            <div class="start-screen" id="startScreen">
+                <h1 class="start-title">Fast Relational Reasoning</h1>
+                <p class="start-subtitle">
+                    Train your mind to process relational logic at high speed.<br>
+                    Stimuli flash fast. Relationships connect them. You decide truth.<br>
+                    Speed matters. Accuracy matters more. Consistency is everything.
+                </p>
+                <div class="saved-progress" id="savedProgress">
+                    <!-- Shown if there's saved progress -->
+                </div>
+                <div class="mode-select">
+                    <button class="mode-btn active" id="modeRelationalBtn" type="button">Relational</button>
+                    <button class="mode-btn" id="modeDeicticBtn" type="button">Deictic</button>
+                </div>
+                <button class="start-btn" id="startBtn">Begin Training</button>
+            </div>
+
+            <!-- Game Screen -->
+            <div class="game-screen hidden" id="gameScreen">
+                <div class="progress-section">
+                    <div class="level-display">
+                        <span class="level-text" id="mechanicLevel">Mechanic 1 - Basic Relations</span>
+                        <span class="mechanic-text" id="currentMechanic">Coordination</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="speedProgress" style="width: 100%"></div>
+                    </div>
+                </div>
+
+                <div class="timer-container">
+                    <div class="timer-fill" id="timerFill"></div>
+                </div>
+
+                <div class="phase-indicator" id="phaseIndicator">Memorize</div>
+
+                <div class="card-display" id="cardDisplay">
+                    <!-- Premises and cards rendered here -->
+                </div>
+
+                <div class="question-container" id="questionContainer">
+                    <div class="question-text" id="questionText"></div>
+                    <div class="answer-buttons">
+                        <button class="answer-btn true" id="btnTrue">True</button>
+                        <button class="answer-btn false" id="btnFalse">False</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Block Complete Screen -->
+            <div class="block-complete hidden" id="blockComplete">
+                <h2 class="block-title">Block Complete!</h2>
+                <div class="block-stats" id="blockStats">
+                    <!-- Stats rendered here -->
+                </div>
+                <button class="start-btn" id="continueBtn">Continue Training</button>
+            </div>
+        </main>
+
+        <div class="keyboard-hint" id="keyboardHint">
+            Press <span class="key">←</span> for True, <span class="key">→</span> for False, <span class="key">ESC</span> for Menu
+        </div>
+    </div>
+
+    <!-- Menu Modal -->
+    <div class="modal" id="menuModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeMenu">&times;</button>
+            <h2 class="modal-title">Menu</h2>
+            <div class="menu-buttons">
+                <button class="menu-action-btn" id="resumeBtn">Resume Training</button>
+                <button class="menu-action-btn" id="guideBtn">View Guide</button>
+                <button class="menu-action-btn" id="statsBtn">Statistics</button>
+                <button class="menu-action-btn danger" id="resetBtn">Reset Progress</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guide Modal -->
+    <div class="modal" id="guideModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeGuide">&times;</button>
+            <h2 class="modal-title">Training Guide</h2>
+            
+            <div class="guide-section">
+                <h3>How It Works</h3>
+                <p><strong>Phase 1 - Stimulus:</strong> Cards and relationships flash on screen. Memorize them! The timer shows how long you have to view them.</p>
+                <p><strong>Phase 2 - Response:</strong> The cards disappear. A question appears asking about the relationships. Take your time to answer correctly - there's no time limit here.</p>
+                <p>Stimulus exposure decreases with correct answers (starting at 1000ms, minimum 200ms). When you master the shortest exposure time, new mechanics unlock!</p>
+            </div>
+
+            <div class="guide-section">
+                <h3>Relation Symbols</h3>
+                <div class="symbol-legend">
+                    <div class="symbol-item"><span class="symbol-char">=</span> Same as</div>
+                    <div class="symbol-item"><span class="symbol-char">≠</span> Opposite of</div>
+                    <div class="symbol-item"><span class="symbol-char">&gt;</span> More than</div>
+                    <div class="symbol-item"><span class="symbol-char">&lt;</span> Less than</div>
+                    <div class="symbol-item"><span class="symbol-char">←</span> Before</div>
+                    <div class="symbol-item"><span class="symbol-char">→</span> After</div>
+                    <div class="symbol-item"><span class="symbol-char">↑</span> Above</div>
+                    <div class="symbol-item"><span class="symbol-char">↓</span> Below</div>
+                    <div class="symbol-item"><span class="symbol-char">⇐</span> Left of</div>
+                    <div class="symbol-item"><span class="symbol-char">⇒</span> Right of</div>
+                    <div class="symbol-item"><span class="symbol-char">⊃</span> Contains</div>
+                    <div class="symbol-item"><span class="symbol-char">⊂</span> Part of</div>
+                </div>
+            </div>
+
+            <div class="guide-section">
+                <h3>Relational Frames</h3>
+                <div class="relation-list">
+                    <div class="relation-item">
+                        <strong>Coordination</strong>
+                        <span>"Same as" - A=B means B=A and if A=B, B=C then A=C</span>
+                    </div>
+                    <div class="relation-item">
+                        <strong>Opposition</strong>
+                        <span>"Opposite of" - If A↔B and B↔C then A=C</span>
+                    </div>
+                    <div class="relation-item">
+                        <strong>Comparison</strong>
+                        <span>"More/Less than" - Transitive: A>B, B>C means A>C</span>
+                    </div>
+                    <div class="relation-item">
+                        <strong>Hierarchical</strong>
+                        <span>"Contains/Part of" - Categories and membership</span>
+                    </div>
+                    <div class="relation-item">
+                        <strong>Temporal</strong>
+                        <span>"Before/After" - Time ordering relationships</span>
+                    </div>
+                    <div class="relation-item">
+                        <strong>Spatial</strong>
+                        <span>"Above/Below/Left/Right" - Position on grid</span>
+                    </div>
+                    <div class="relation-item">
+                        <strong>Deictic</strong>
+                        <span>"I/You, Here/There, Now/Then" - Perspective-based</span>
+                    </div>
+                    <div class="relation-item">
+                        <strong>Causality</strong>
+                        <span>"Causes/Caused by" - Causal relationships</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="guide-section">
+                <h3>Boolean Logic (Advanced)</h3>
+                <p>At higher levels, questions use boolean operators:</p>
+                <p><code>AND</code> - Both conditions must match</p>
+                <p><code>OR</code> - At least one condition matches</p>
+                <p><code>XOR</code> - Exactly one condition matches</p>
+                <p><code>IFF</code> - If and only if (conditional)</p>
+            </div>
+
+            <div class="guide-section">
+                <h3>Scoring</h3>
+                <p>Base points depend on difficulty level. Multipliers apply:</p>
+                <p><strong>Speed Bonus:</strong> Faster response = higher multiplier (up to 3x)</p>
+                <p><strong>Streak Bonus:</strong> Consecutive correct answers multiply (up to 5x)</p>
+                <p><strong>Accuracy Penalty:</strong> Wrong answers lose points and break streaks</p>
+                <p>High proficiency at difficult levels yields the best scores!</p>
+            </div>
+
+            <div class="guide-section">
+                <h3>Controls</h3>
+                <p>Press <code>←</code> (Left Arrow) or click TRUE button</p>
+                <p>Press <code>→</code> (Right Arrow) or click FALSE button</p>
+                <p>Press <code>ESC</code> to open menu</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Modal -->
+    <div class="modal" id="statsModal">
+        <div class="modal-content">
+            <button class="modal-close" id="closeStats">&times;</button>
+            <h2 class="modal-title">Statistics</h2>
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats rendered dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // SYMBOL DEFINITIONS
+        // ============================================
+        const SYMBOLS = {
+            cross: {
+                name: 'Cross',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M42 15h16v28h28v16H58v28H42V59H14V43h28z"/></svg>`
+            },
+            spade: {
+                name: 'Spade',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M50 10 C20 40 10 55 25 70 C35 80 45 75 50 85 L50 90 L45 90 C45 85 40 80 40 80 L60 80 C60 80 55 85 55 90 L50 90 L50 85 C55 75 65 80 75 70 C90 55 80 40 50 10z"/></svg>`
+            },
+            heart: {
+                name: 'Heart',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M50 85 C20 55 10 35 30 20 C45 10 50 25 50 25 C50 25 55 10 70 20 C90 35 80 55 50 85z"/></svg>`
+            },
+            club: {
+                name: 'Club',
+                svg: `<svg viewBox="0 0 100 100"><circle fill="#1a1a1a" cx="50" cy="35" r="18"/><circle fill="#1a1a1a" cx="30" cy="55" r="18"/><circle fill="#1a1a1a" cx="70" cy="55" r="18"/><path fill="#1a1a1a" d="M45 65 L45 85 L40 85 L40 90 L60 90 L60 85 L55 85 L55 65z"/></svg>`
+            },
+            diamond: {
+                name: 'Diamond',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M50 10 L80 50 L50 90 L20 50z"/></svg>`
+            },
+            moon: {
+                name: 'Moon',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M65 15 C35 15 15 40 15 55 C15 80 35 90 55 90 C40 85 30 70 30 55 C30 35 45 20 65 15 Z"/></svg>`
+            },
+            lightning: {
+                name: 'Lightning',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M55 10 L30 50 L45 50 L35 90 L70 45 L52 45 L65 10z"/></svg>`
+            },
+            arrow: {
+                name: 'Arrow',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M15 40 L65 40 L65 25 L90 50 L65 75 L65 60 L15 60z"/></svg>`
+            },
+            circle: {
+                name: 'Circle',
+                svg: `<svg viewBox="0 0 100 100"><circle fill="#1a1a1a" cx="50" cy="50" r="38"/></svg>`
+            },
+            square: {
+                name: 'Square',
+                svg: `<svg viewBox="0 0 100 100"><rect fill="#1a1a1a" x="12" y="12" width="76" height="76"/></svg>`
+            },
+            triangle: {
+                name: 'Triangle',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M50 10 L90 85 L10 85 Z"/></svg>`
+            },
+            star: {
+                name: 'Star',
+                svg: `<svg viewBox="0 0 100 100"><path fill="#1a1a1a" d="M50 5 L61 40 L98 40 L68 60 L79 95 L50 72 L21 95 L32 60 L2 40 L39 40 Z"/></svg>`
+            }
+        };
+
+        const SYMBOL_KEYS = Object.keys(SYMBOLS);
+
+        // ============================================
+        // RELATION DEFINITIONS
+        // ============================================
+        const RELATIONS = {
+            coordination: {
+                name: 'Coordination',
+                phrase: 'the same as',
+                symbol: '=',
+                inverse: 'coordination'
+            },
+            opposition: {
+                name: 'Opposition',
+                phrase: 'the opposite of',
+                symbol: '≠',
+                inverse: 'opposition'
+            },
+            comparison_more: {
+                name: 'More Than',
+                phrase: 'more than',
+                symbol: '>',
+                inverse: 'comparison_less'
+            },
+            comparison_less: {
+                name: 'Less Than',
+                phrase: 'less than',
+                symbol: '<',
+                inverse: 'comparison_more'
+            },
+            temporal_before: {
+                name: 'Before',
+                phrase: 'before',
+                symbol: '←',
+                inverse: 'temporal_after'
+            },
+            temporal_after: {
+                name: 'After',
+                phrase: 'after',
+                symbol: '→',
+                inverse: 'temporal_before'
+            },
+            spatial_above: {
+                name: 'Above',
+                phrase: 'above',
+                symbol: '↑',
+                inverse: 'spatial_below'
+            },
+            spatial_below: {
+                name: 'Below',
+                phrase: 'below',
+                symbol: '↓',
+                inverse: 'spatial_above'
+            },
+            spatial_left: {
+                name: 'Left of',
+                phrase: 'to the left of',
+                symbol: '⇐',
+                inverse: 'spatial_right'
+            },
+            spatial_right: {
+                name: 'Right of',
+                phrase: 'to the right of',
+                symbol: '⇒',
+                inverse: 'spatial_left'
+            },
+            hierarchical_contains: {
+                name: 'Contains',
+                phrase: 'containing',
+                symbol: '⊃',
+                inverse: 'hierarchical_part_of'
+            },
+            hierarchical_part_of: {
+                name: 'Part of',
+                phrase: 'part of',
+                symbol: '⊂',
+                inverse: 'hierarchical_contains'
+            },
+            causal_causes: {
+                name: 'Causes',
+                phrase: 'causing',
+                symbol: '→•',
+                inverse: 'causal_caused_by'
+            },
+            causal_caused_by: {
+                name: 'Caused by',
+                phrase: 'caused by',
+                symbol: '•←',
+                inverse: 'causal_causes'
+            }
+        };
+
+        // ============================================
+        // GAME STATE
+        // ============================================
+        const GameState = {
+            // Core state
+            isRunning: false,
+            isPaused: false,
+            currentTrial: null,
+            phase: 'idle', // 'stimulus', 'response', 'feedback', 'idle'
+            
+            // Scoring
+            score: 0,
+            level: 1,
+            streak: 0,
+            maxStreak: 0,
+            
+            // Block tracking
+            blockTrials: 0,
+            blockCorrect: 0,
+            blockTotalTime: 0,
+            totalTrials: 0,
+            totalCorrect: 0,
+            
+            // Timing
+            baseTime: 1000,
+            currentTime: 1000,
+            minTime: 200,
+            timeDecrement: 40,
+            trialStartTime: 0,
+            stimulusStartTime: 0,
+            responseStartTime: 0,
+            responseTimeoutId: null,
+            responseTimeLimitMs: 9000,
+            minDerivationDepth: 1,
+            mode: 'relational',
+            deicticStage: 1,
+            masteryBlocksInRow: 0,
+            blockResponseTimes: [],
+            blockTimeouts: 0,
+            pendingProgression: null,
+            
+            // Mechanics progression
+            mechanicLevel: 1,
+            unlockedMechanics: ['coordination'],
+            
+            // Timer
+            timerInterval: null,
+            timeRemaining: 0,
+            
+            // Statistics
+            stats: {
+                totalSessions: 0,
+                totalTrials: 0,
+                totalCorrect: 0,
+                totalScore: 0,
+                bestStreak: 0,
+                averageTime: 0,
+                timeHistory: [],
+                mechanicsUnlocked: 1,
+                highestLevel: 1
+            }
+        };
+
+        // Mechanic definitions by level
+        const MECHANICS = [
+            { level: 1, name: 'Basic Relations', relations: ['coordination', 'opposition'], premises: 1, negations: false, boolean: false },
+            { level: 2, name: 'Two Premises', relations: ['coordination', 'opposition'], premises: 2, negations: false, boolean: false },
+            { level: 3, name: 'Negations', relations: ['coordination', 'opposition'], premises: 2, negations: true, boolean: false },
+            { level: 4, name: 'Three Premises', relations: ['coordination', 'opposition'], premises: 3, negations: true, boolean: false },
+            { level: 5, name: 'Comparison', relations: ['coordination', 'opposition', 'comparison_more', 'comparison_less'], premises: 3, negations: true, boolean: false },
+            { level: 6, name: 'Temporal', relations: ['coordination', 'opposition', 'temporal_before', 'temporal_after'], premises: 3, negations: true, boolean: false },
+            { level: 7, name: 'Spatial', relations: ['coordination', 'opposition', 'spatial_above', 'spatial_below', 'spatial_left', 'spatial_right'], premises: 3, negations: true, boolean: false },
+            { level: 8, name: 'Four Premises', relations: ['coordination', 'opposition', 'comparison_more', 'comparison_less'], premises: 4, negations: true, boolean: false },
+            { level: 9, name: 'Boolean AND', relations: ['coordination', 'opposition', 'comparison_more', 'comparison_less'], premises: 4, negations: true, boolean: 'AND' },
+            { level: 10, name: 'Boolean XOR', relations: ['coordination', 'opposition', 'comparison_more', 'comparison_less'], premises: 4, negations: true, boolean: 'XOR' },
+            { level: 11, name: 'Five Premises', relations: ['coordination', 'opposition', 'comparison_more', 'comparison_less', 'temporal_before', 'temporal_after'], premises: 5, negations: true, boolean: 'AND' },
+            { level: 12, name: 'Hierarchical', relations: ['coordination', 'opposition', 'hierarchical_contains', 'hierarchical_part_of'], premises: 5, negations: true, boolean: 'AND' },
+            { level: 13, name: 'Causal', relations: ['coordination', 'opposition', 'causal_causes', 'causal_caused_by'], premises: 5, negations: true, boolean: 'XOR' },
+            { level: 14, name: 'Conditional IFF', relations: ['coordination', 'opposition', 'comparison_more', 'comparison_less'], premises: 5, negations: true, boolean: 'IFF' },
+            { level: 15, name: 'Master', relations: Object.keys(RELATIONS), premises: 5, negations: true, boolean: 'ALL' }
+        ];
+
+        // ============================================
+        // TRAINING MODES (RELATIONAL vs DEICTIC)
+        // ============================================
+        const TRAINING_MODES = {
+            RELATIONAL: 'relational',
+            DEICTIC: 'deictic'
+        };
+
+        // Deictic training stages follow the RFT convention of SIMPLE, REVERSED, and DOUBLE-REVERSED
+        // across I–YOU, HERE–THERE, and NOW–THEN frames.
+        const DEICTIC_STAGES = [
+            { level: 1, name: 'Simple I–YOU', frame: 'IYOU', complexity: 'simple' },
+            { level: 2, name: 'Reversed I–YOU', frame: 'IYOU', complexity: 'reversed' },
+            { level: 3, name: 'Simple HERE–THERE', frame: 'HERETHERE', complexity: 'simple' },
+            { level: 4, name: 'Reversed HERE–THERE', frame: 'HERETHERE', complexity: 'reversed' },
+            { level: 5, name: 'Simple NOW–THEN', frame: 'NOWTHEN', complexity: 'simple' },
+            { level: 6, name: 'Reversed NOW–THEN', frame: 'NOWTHEN', complexity: 'reversed' },
+            { level: 7, name: 'Double-Reversed I–YOU + HERE–THERE', frame: 'IYOU_HERETHERE', complexity: 'double' },
+            { level: 8, name: 'Mixed Deictic', frame: 'MIXED', complexity: 'mixed' }
+        ];
+
+        function getRelationalConfig() {
+            const lvl = GameState.mechanicLevel;
+
+            // Minimum derivation depth pushes questions toward genuine inference (vs direct recall)
+            const minDepth =
+                (lvl <= 2) ? 1 :
+                (lvl <= 7) ? 2 :
+                (lvl <= 12) ? 3 : 4;
+
+            // Response time limit is a separate constraint from stimulus exposure (speed vs accuracy)
+            const responseLimitMs = Math.max(2500, 10500 - (lvl - 1) * 450);
+
+            return { minDepth, responseLimitMs };
+        }
+
+        function getDeicticConfig() {
+            const s = GameState.deicticStage;
+            const responseLimitMs = Math.max(3000, 11000 - (s - 1) * 700);
+            return { responseLimitMs };
+        }
+
+        function applyStageParameters() {
+            if (GameState.mode === TRAINING_MODES.DEICTIC) {
+                const cfg = getDeicticConfig();
+                GameState.responseTimeLimitMs = cfg.responseLimitMs;
+                GameState.minDerivationDepth = 1; // not used in deictic mode
+            } else {
+                const cfg = getRelationalConfig();
+                GameState.responseTimeLimitMs = cfg.responseLimitMs;
+                GameState.minDerivationDepth = cfg.minDepth;
+            }
+        }
+
+        function setMode(mode) {
+            GameState.mode = mode;
+            applyStageParameters();
+            saveProgress();
+
+            const relBtn = document.getElementById('modeRelationalBtn');
+            const deiBtn = document.getElementById('modeDeicticBtn');
+            if (relBtn && deiBtn) {
+                relBtn.classList.toggle('active', mode === TRAINING_MODES.RELATIONAL);
+                deiBtn.classList.toggle('active', mode === TRAINING_MODES.DEICTIC);
+            }
+        }
+
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const DOM = {
+            gameArea: document.getElementById('gameArea'),
+            startScreen: document.getElementById('startScreen'),
+            gameScreen: document.getElementById('gameScreen'),
+            blockComplete: document.getElementById('blockComplete'),
+            cardDisplay: document.getElementById('cardDisplay'),
+            phaseIndicator: document.getElementById('phaseIndicator'),
+            questionContainer: document.getElementById('questionContainer'),
+            questionText: document.getElementById('questionText'),
+            timerFill: document.getElementById('timerFill'),
+            scoreDisplay: document.getElementById('scoreDisplay'),
+            levelDisplay: document.getElementById('levelDisplay'),
+            streakDisplay: document.getElementById('streakDisplay'),
+            blockProgress: document.getElementById('blockProgress'),
+            mechanicLevel: document.getElementById('mechanicLevel'),
+            currentMechanic: document.getElementById('currentMechanic'),
+            speedProgress: document.getElementById('speedProgress'),
+            feedbackOverlay: document.getElementById('feedbackOverlay'),
+            pointsPopup: document.getElementById('pointsPopup'),
+            btnTrue: document.getElementById('btnTrue'),
+            btnFalse: document.getElementById('btnFalse'),
+            menuModal: document.getElementById('menuModal'),
+            guideModal: document.getElementById('guideModal'),
+            statsModal: document.getElementById('statsModal'),
+            statsGrid: document.getElementById('statsGrid'),
+            blockStats: document.getElementById('blockStats')
+        };
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+        function shuffle(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function pickRandom(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function pickMultiple(array, count) {
+            return shuffle(array).slice(0, count);
+        }
+
+        function getSymbolHTML(symbolKey, size = 'normal', color = 'dark') {
+            const symbol = SYMBOLS[symbolKey];
+            if (!symbol) {
+                console.error('Symbol not found:', symbolKey);
+                return '<span>?</span>';
+            }
+            const sizeClass = (size === 'inline' || size === 'small') ? 'inline-symbol' : '';
+            
+            // For questions (light color on dark bg), replace colors with white
+            let svgContent = symbol.svg;
+            if (color === 'light') {
+                svgContent = svgContent.replace(/#1a1a1a/g, '#ffffff');
+            }
+            
+            return `<span class="${sizeClass}">${svgContent}</span>`;
+        }
+
+        // ============================================
+        // RELATIONAL LOGIC ENGINE (RFT-based)
+        // ============================================
+        
+        // Define how each relation type works for mutual entailment
+        const RELATION_PROPERTIES = {
+            // Symmetric relations (mutual entailment = same relation)
+            coordination: { 
+                symmetric: true, 
+                inverse: 'coordination',
+                combinesWith: {
+                    coordination: 'coordination',  // A=B, B=C → A=C
+                    opposition: 'opposition'        // A=B, B↔C → A↔C
+                }
+            },
+            opposition: { 
+                symmetric: true, 
+                inverse: 'opposition',
+                combinesWith: {
+                    coordination: 'opposition',     // A↔B, B=C → A↔C
+                    opposition: 'coordination'      // A↔B, B↔C → A=C (two opposites cancel!)
+                }
+            },
+            distinction: {
+                symmetric: true,
+                inverse: 'distinction',
+                combinesWith: {} // Distinction doesn't combine transitively
+            },
+            
+            // Asymmetric relations (mutual entailment = inverse relation)
+            comparison_more: { 
+                symmetric: false, 
+                inverse: 'comparison_less',
+                combinesWith: {
+                    comparison_more: 'comparison_more',   // A>B, B>C → A>C
+                    comparison_less: null                  // A>B, B<C → unknown
+                }
+            },
+            comparison_less: { 
+                symmetric: false, 
+                inverse: 'comparison_more',
+                combinesWith: {
+                    comparison_less: 'comparison_less',
+                    comparison_more: null
+                }
+            },
+            temporal_before: { 
+                symmetric: false, 
+                inverse: 'temporal_after',
+                combinesWith: {
+                    temporal_before: 'temporal_before',
+                    temporal_after: null
+                }
+            },
+            temporal_after: { 
+                symmetric: false, 
+                inverse: 'temporal_before',
+                combinesWith: {
+                    temporal_after: 'temporal_after',
+                    temporal_before: null
+                }
+            },
+            spatial_above: { 
+                symmetric: false, 
+                inverse: 'spatial_below',
+                combinesWith: {
+                    spatial_above: 'spatial_above',
+                    spatial_below: null
+                }
+            },
+            spatial_below: { 
+                symmetric: false, 
+                inverse: 'spatial_above',
+                combinesWith: {
+                    spatial_below: 'spatial_below',
+                    spatial_above: null
+                }
+            },
+            spatial_left: { 
+                symmetric: false, 
+                inverse: 'spatial_right',
+                combinesWith: {
+                    spatial_left: 'spatial_left',
+                    spatial_right: null
+                }
+            },
+            spatial_right: { 
+                symmetric: false, 
+                inverse: 'spatial_left',
+                combinesWith: {
+                    spatial_right: 'spatial_right',
+                    spatial_left: null
+                }
+            },
+            hierarchical_contains: { 
+                symmetric: false, 
+                inverse: 'hierarchical_part_of',
+                combinesWith: {
+                    hierarchical_contains: 'hierarchical_contains'
+                }
+            },
+            hierarchical_part_of: { 
+                symmetric: false, 
+                inverse: 'hierarchical_contains',
+                combinesWith: {
+                    hierarchical_part_of: 'hierarchical_part_of'
+                }
+            },
+            causal_causes: { 
+                symmetric: false, 
+                inverse: 'causal_caused_by',
+                combinesWith: {
+                    causal_causes: 'causal_causes'
+                }
+            },
+            causal_caused_by: { 
+                symmetric: false, 
+                inverse: 'causal_causes',
+                combinesWith: {
+                    causal_caused_by: 'causal_caused_by'
+                }
+            }
+        };
+
+        class RelationalNetwork {
+            constructor() {
+                // Store relations as: Map<string, Map<string, string>>
+                // relations[from][to] = relationType
+                this.relations = new Map();
+            }
+
+            addRelation(from, to, relationType) {
+                // Store the direct relation
+                if (!this.relations.has(from)) {
+                    this.relations.set(from, new Map());
+                }
+                this.relations.get(from).set(to, relationType);
+
+                // Store the mutually entailed relation (bidirectional)
+                const props = RELATION_PROPERTIES[relationType];
+                if (props && props.inverse) {
+                    const inverseType = props.inverse;
+                    if (!this.relations.has(to)) {
+                        this.relations.set(to, new Map());
+                    }
+                    this.relations.get(to).set(from, inverseType);
+                } else if (props && props.symmetric) {
+                    // Symmetric relations imply bidirectionality with the same label
+                    if (!this.relations.has(to)) {
+                        this.relations.set(to, new Map());
+                    }
+                    this.relations.get(to).set(from, relationType);
+                }
+            }
+
+            // Get direct relation between two stimuli (if exists)
+            getDirectRelation(from, to) {
+                if (this.relations.has(from) && this.relations.get(from).has(to)) {
+                    return this.relations.get(from).get(to);
+                }
+                return null;
+            }
+
+            // Derive relation through combinatorial entailment
+            deriveRelation(from, to) {
+                const res = this.deriveRelationAndDepth(from, to);
+                return res ? res.relation : null;
+            }
+
+            // Derive relation and return minimal derivation depth (number of links)
+            deriveRelationAndDepth(from, to) {
+                // Check direct relation first
+                const direct = this.getDirectRelation(from, to);
+                if (direct) return { relation: direct, depth: 1 };
+
+                // BFS to find path and derive relation
+                const visited = new Set();
+                const queue = [{ current: from, relation: null, depth: 0 }];
+
+                while (queue.length > 0) {
+                    const { current, relation, depth } = queue.shift();
+
+                    if (visited.has(current)) continue;
+                    visited.add(current);
+
+                    if (current === to && relation !== null) {
+                        return { relation, depth };
+                    }
+
+                    // Explore all connected nodes
+                    if (this.relations.has(current)) {
+                        for (const [next, relType] of this.relations.get(current)) {
+                            if (visited.has(next)) continue;
+
+                            // Combine relations
+                            let combinedRelation;
+                            if (relation === null) {
+                                combinedRelation = relType;
+                            } else {
+                                combinedRelation = this.combineRelations(relation, relType);
+                            }
+
+                            if (combinedRelation !== null) {
+                                queue.push({ current: next, relation: combinedRelation, depth: depth + 1 });
+                            }
+                        }
+                    }
+                }
+
+                return null; // No derivable relation
+            }
+
+            // Combine two relations according to RFT combinatorial entailment
+            combineRelations(rel1, rel2) {
+                const props1 = RELATION_PROPERTIES[rel1];
+                if (!props1 || !props1.combinesWith) return null;
+
+                if (props1.combinesWith.hasOwnProperty(rel2)) {
+                    return props1.combinesWith[rel2];
+                }
+
+                return null;
+            }
+
+            // Check if a specific relation holds between two stimuli
+            checkRelation(from, to, targetRelation) {
+                const derived = this.deriveRelation(from, to);
+                return derived === targetRelation;
+            }
+        }
+
+        // ============================================
+        // TRIAL GENERATOR
+        // ============================================
+        
+        // Define relation families - each trial uses ONLY ONE family
+        const RELATION_FAMILIES = {
+            equivalence: ['coordination', 'opposition'],
+            comparison: ['comparison_more', 'comparison_less'],
+            temporal: ['temporal_before', 'temporal_after'],
+            spatial_vertical: ['spatial_above', 'spatial_below'],
+            spatial_horizontal: ['spatial_left', 'spatial_right'],
+            hierarchical: ['hierarchical_contains', 'hierarchical_part_of'],
+            causal: ['causal_causes', 'causal_caused_by']
+        };
+
+        // Get family name for a relation
+        function getFamilyForRelation(relation) {
+            for (const [family, relations] of Object.entries(RELATION_FAMILIES)) {
+                if (relations.includes(relation)) return family;
+            }
+            return 'equivalence';
+        }
+
+        // Get available families from mechanic's relations
+        function getAvailableFamilies(availableRelations) {
+            const families = new Set();
+            for (const rel of availableRelations) {
+                families.add(getFamilyForRelation(rel));
+            }
+            return Array.from(families);
+        }
+
+        function generateTrial() {
+            const mechanic = MECHANICS[Math.min(GameState.mechanicLevel - 1, MECHANICS.length - 1)];
+            const numPremises = mechanic.premises;
+            const availableRelations = mechanic.relations;
+            const useNegation = mechanic.negations && Math.random() < 0.5;
+            const booleanType = mechanic.boolean;
+
+            // IMPORTANT: Pick ONE relation family for this entire trial
+            const availableFamilies = getAvailableFamilies(availableRelations);
+            const chosenFamily = pickRandom(availableFamilies);
+            const familyRelations = RELATION_FAMILIES[chosenFamily];
+            
+            // Filter to only relations in the chosen family that are also available
+            let relationsForTrial = familyRelations.filter(r => availableRelations.includes(r));
+            
+            // With branching structures, we CAN mix directions (e.g., before/after)
+            // because the RelationalNetwork handles inverses properly
+            // Example: "A before B", "C after D", "C before A" → valid chain D→C→A→B
+
+            // Select symbols for this trial
+            const neededSymbols = numPremises + 2; // Extra for branching
+            const selectedSymbols = pickMultiple(SYMBOL_KEYS, Math.min(neededSymbols + 2, SYMBOL_KEYS.length));
+            
+            // Build premises with BRANCHING STRUCTURE (not linear!)
+            const premises = [];
+            const network = new RelationalNetwork();
+            
+            if (numPremises <= 2) {
+                // Simple linear for 1-2 premises
+                for (let i = 0; i < numPremises; i++) {
+                    const from = selectedSymbols[i];
+                    const to = selectedSymbols[i + 1];
+                    const relationType = pickRandom(relationsForTrial);
+                    premises.push({ from, to, type: relationType });
+                    network.addRelation(from, to, relationType);
+                }
+            } else {
+                // BRANCHING STRUCTURE for 3+ premises
+                // Creates two branches that converge via a bridge
+                
+                // Branch 1: A rel B
+                const a = selectedSymbols[0];
+                const b = selectedSymbols[1];
+                const rel1 = pickRandom(relationsForTrial);
+                premises.push({ from: a, to: b, type: rel1 });
+                network.addRelation(a, b, rel1);
+                
+                // Branch 2: C rel D
+                const c = selectedSymbols[2];
+                const d = selectedSymbols[3];
+                const rel2 = pickRandom(relationsForTrial);
+                premises.push({ from: c, to: d, type: rel2 });
+                network.addRelation(c, d, rel2);
+                
+                // Bridge: Connect branches (D rel B or C rel B)
+                const rel3 = pickRandom(relationsForTrial);
+                if (Math.random() < 0.5) {
+                    premises.push({ from: d, to: b, type: rel3 });
+                    network.addRelation(d, b, rel3);
+                } else {
+                    premises.push({ from: c, to: b, type: rel3 });
+                    network.addRelation(c, b, rel3);
+                }
+                
+                // Additional premises for 4+
+                if (numPremises >= 4) {
+                    const e = selectedSymbols[4] || selectedSymbols[0];
+                    const rel4 = pickRandom(relationsForTrial);
+                    // Extend branch 1 or add another connection
+                    if (Math.random() < 0.5) {
+                        premises.push({ from: e, to: a, type: rel4 });
+                        network.addRelation(e, a, rel4);
+                    } else {
+                        premises.push({ from: a, to: c, type: rel4 });
+                        network.addRelation(a, c, rel4);
+                    }
+                }
+                
+                if (numPremises >= 5) {
+                    const f = selectedSymbols[5] || selectedSymbols[1];
+                    const rel5 = pickRandom(relationsForTrial);
+                    // Add more complexity
+                    premises.push({ from: f, to: d, type: rel5 });
+                    network.addRelation(f, d, rel5);
+                }
+            }
+            
+            // Shuffle premises so the structure isn't obvious
+            const shuffledPremises = shuffle([...premises]);
+
+            // Generate question - pick symbols from different branches for interesting inference
+            let question;
+            
+            // Get all unique symbols used
+            const usedSymbols = [...new Set(premises.flatMap(p => [p.from, p.to]))];
+            
+            if (booleanType && booleanType !== false) {
+                question = generateBooleanQuestion(shuffledPremises, usedSymbols, network, booleanType, useNegation, relationsForTrial);
+            } else {
+                question = generateSimpleQuestion(shuffledPremises, usedSymbols, network, relationsForTrial, useNegation);
+            }
+
+            return {
+                premises: shuffledPremises,
+                question: question.question,
+                correctAnswer: question.answer,
+                useNegation: question.negated,
+                booleanType: booleanType,
+                family: chosenFamily
+            };
+        }
+
+        // ============================================
+        // DEICTIC TRIAL GENERATION (PERSPECTIVE-TAKING)
+        // ============================================
+        function formatInlineSymbol(key) {
+            return getSymbolHTML(key, 'small', 'light');
+        }
+
+        function generateDeicticTrial() {
+            // Choose stage (or sample within MIXED)
+            let stage = DEICTIC_STAGES[Math.min(GameState.deicticStage - 1, DEICTIC_STAGES.length - 1)];
+            if (stage.frame === 'MIXED') {
+                stage = pickRandom(DEICTIC_STAGES.filter(s => s.frame !== 'MIXED'));
+            }
+
+            const useNeg = Math.random() < 0.25;
+            const overallShouldBeTrue = Math.random() < 0.5;
+
+            let premises = [];
+            let statement = '';
+            let truthValue = false;
+
+            if (stage.frame === 'IYOU') {
+                const [objI, objYou] = pickMultiple(SYMBOL_KEYS, 2);
+
+                premises.push({ kind: 'deictic', text: `<b>I</b> have ${formatInlineSymbol(objI)}.` });
+                premises.push({ kind: 'deictic', text: `<b>YOU</b> have ${formatInlineSymbol(objYou)}.` });
+
+                const reversed = (stage.complexity === 'reversed');
+                if (reversed) {
+                    premises.push({ kind: 'deictic', text: `<i>If <b>I</b> were <b>YOU</b> and <b>YOU</b> were <b>ME</b>...</i>` });
+                }
+
+                const target = pickRandom(['I', 'YOU']);
+                const mapping = { I: objI, YOU: objYou };
+                const mapped = reversed ? { I: mapping.YOU, YOU: mapping.I } : mapping;
+
+                const trueObj = mapped[target];
+                const falseObj = (trueObj === objI) ? objYou : objI;
+                const chosenObj = overallShouldBeTrue ? trueObj : falseObj;
+
+                statement = `<b>${target}</b> have ${formatInlineSymbol(chosenObj)}.`;
+                truthValue = (chosenObj === trueObj);
+
+            } else if (stage.frame === 'HERETHERE') {
+                const [objHere, objThere] = pickMultiple(SYMBOL_KEYS, 2);
+
+                premises.push({ kind: 'deictic', text: `${formatInlineSymbol(objHere)} is <b>HERE</b>.` });
+                premises.push({ kind: 'deictic', text: `${formatInlineSymbol(objThere)} is <b>THERE</b>.` });
+
+                const reversed = (stage.complexity === 'reversed');
+                if (reversed) {
+                    premises.push({ kind: 'deictic', text: `<i>If <b>HERE</b> were <b>THERE</b> and <b>THERE</b> were <b>HERE</b>...</i>` });
+                }
+
+                const target = pickRandom(['HERE', 'THERE']);
+                const mapping = { HERE: objHere, THERE: objThere };
+                const mapped = reversed ? { HERE: mapping.THERE, THERE: mapping.HERE } : mapping;
+
+                const trueObj = mapped[target];
+                const falseObj = (trueObj === objHere) ? objThere : objHere;
+                const chosenObj = overallShouldBeTrue ? trueObj : falseObj;
+
+                statement = `${formatInlineSymbol(chosenObj)} is <b>${target}</b>.`;
+                truthValue = (chosenObj === trueObj);
+
+            } else if (stage.frame === 'NOWTHEN') {
+                const [objNow, objThen] = pickMultiple(SYMBOL_KEYS, 2);
+
+                premises.push({ kind: 'deictic', text: `<b>NOW</b>, I have ${formatInlineSymbol(objNow)}.` });
+                premises.push({ kind: 'deictic', text: `<b>THEN</b>, I had ${formatInlineSymbol(objThen)}.` });
+
+                const reversed = (stage.complexity === 'reversed');
+                if (reversed) {
+                    premises.push({ kind: 'deictic', text: `<i>If <b>NOW</b> were <b>THEN</b> and <b>THEN</b> were <b>NOW</b>...</i>` });
+                }
+
+                const target = pickRandom(['NOW', 'THEN']);
+                const mapping = { NOW: objNow, THEN: objThen };
+                const mapped = reversed ? { NOW: mapping.THEN, THEN: mapping.NOW } : mapping;
+
+                const trueObj = mapped[target];
+                const falseObj = (trueObj === objNow) ? objThen : objNow;
+                const chosenObj = overallShouldBeTrue ? trueObj : falseObj;
+
+                statement = `<b>${target}</b>, I have ${formatInlineSymbol(chosenObj)}.`;
+                truthValue = (chosenObj === trueObj);
+
+            } else if (stage.frame === 'IYOU_HERETHERE') {
+                // Double-reversed: swap I–YOU AND HERE–THERE together
+                const [objA, objB] = pickMultiple(SYMBOL_KEYS, 2);
+
+                premises.push({ kind: 'deictic', text: `<b>I</b> am <b>HERE</b> with ${formatInlineSymbol(objA)}.` });
+                premises.push({ kind: 'deictic', text: `<b>YOU</b> are <b>THERE</b> with ${formatInlineSymbol(objB)}.` });
+                premises.push({ kind: 'deictic', text: `<i>If <b>I</b> were <b>YOU</b> and <b>YOU</b> were <b>ME</b>, and <b>HERE</b> were <b>THERE</b> and <b>THERE</b> were <b>HERE</b>...</i>` });
+
+                // Under double reversal, the statements that can be TRUE are:
+                // 1) I HERE with objB (because I->YOU, HERE->THERE)
+                // 2) YOU THERE with objA (because YOU->I, THERE->HERE)
+                const trueConfigs = [
+                    { person: 'I', place: 'HERE', trueObj: objB },
+                    { person: 'YOU', place: 'THERE', trueObj: objA }
+                ];
+
+                const tc = pickRandom(trueConfigs);
+                const chosenObj = overallShouldBeTrue ? tc.trueObj : (tc.trueObj === objA ? objB : objA);
+
+                statement = `<b>${tc.person}</b> ${tc.person === 'I' ? 'am' : 'are'} <b>${tc.place}</b> with ${formatInlineSymbol(chosenObj)}.`;
+                truthValue = (chosenObj === tc.trueObj);
+
+            } else {
+                // Fallback: use I–YOU simple
+                GameState.deicticStage = 1;
+                return generateDeicticTrial();
+            }
+
+            let correctAnswer = truthValue;
+            if (useNeg) correctAnswer = !correctAnswer;
+
+            const question = `
+                ${useNeg ? '<span class="negation-text">NOT</span> ' : ''}
+                Is the following statement true?
+                <div style="margin-top:10px; font-size:22px; line-height:1.45;">
+                    ${statement}
+                </div>
+            `;
+
+            return {
+                premises,
+                question,
+                correctAnswer
+            };
+        }
+
+
+        function generateSimpleQuestion(premises, symbols, network, relations, useNegation) {
+            // Decide target truth of the statement (balanced)
+            const shouldBeTrue = Math.random() < 0.5;
+            const useNeg = useNegation;
+
+            const minDepth = GameState.minDerivationDepth || 1;
+
+            // Build all derivable ordered pairs with depth
+            const allPairs = [];
+            for (let i = 0; i < symbols.length; i++) {
+                for (let j = 0; j < symbols.length; j++) {
+                    if (i === j) continue;
+
+                    const from = symbols[i];
+                    const to = symbols[j];
+
+                    const res = network.deriveRelationAndDepth(from, to);
+                    if (!res) continue;
+                    if (!relations.includes(res.relation)) continue;
+
+                    const direct = (network.getDirectRelation(from, to) === res.relation);
+                    const depth = direct ? 1 : res.depth;
+
+                    allPairs.push({ from, to, relation: res.relation, direct, depth });
+                }
+            }
+
+            const directPairs = allPairs.filter(p => p.direct);
+            const inferencePairs = allPairs.filter(p => !p.direct && p.depth >= Math.max(2, minDepth));
+
+            // Prefer inference, but keep some direct questions for calibration
+            const directChance = (GameState.mechanicLevel <= 2) ? 0.4 : 0.15;
+
+            let chosenPair;
+            if (Math.random() < directChance && directPairs.length > 0) {
+                chosenPair = pickRandom(directPairs);
+            } else if (inferencePairs.length > 0) {
+                chosenPair = pickRandom(inferencePairs);
+            } else if (allPairs.length > 0) {
+                chosenPair = pickRandom(allPairs);
+            } else {
+                chosenPair = { from: symbols[0], to: symbols[1], relation: pickRandom(relations), direct: true, depth: 1 };
+            }
+
+            const from = chosenPair.from;
+            const to = chosenPair.to;
+            const actualRelation = chosenPair.relation;
+
+            let relationToAsk = actualRelation;
+            let correctAnswer;
+
+            if (shouldBeTrue) {
+                relationToAsk = actualRelation;
+                correctAnswer = useNeg ? false : true;
+            } else {
+                const wrongRelations = relations.filter(r => r !== actualRelation);
+                if (wrongRelations.length > 0) {
+                    relationToAsk = pickRandom(wrongRelations);
+                    correctAnswer = useNeg ? true : false;
+                } else {
+                    relationToAsk = actualRelation;
+                    correctAnswer = useNeg ? false : true;
+                }
+            }
+
+            const finalRelationDef = RELATIONS[relationToAsk] || RELATIONS['coordination'];
+            const relationPhrase = finalRelationDef ? finalRelationDef.phrase : 'is related to';
+
+            const questionText = useNeg
+                ? `Is ${getSymbolHTML(from, 'inline', 'light')} <span class="negation-text">NOT</span> ${relationPhrase} ${getSymbolHTML(to, 'inline', 'light')}?`
+                : `Is ${getSymbolHTML(from, 'inline', 'light')} ${relationPhrase} ${getSymbolHTML(to, 'inline', 'light')}?`;
+
+return { question: questionText, answer: correctAnswer, negated: useNeg };
+        }
+
+        function generateBooleanQuestion(premises, symbols, network, booleanType, useNegation, relations) {
+            // Allow 'ALL' to sample from every boolean operator
+            let op = booleanType;
+            if (op === 'ALL') {
+                op = pickRandom(['AND', 'OR', 'XOR', 'IFF']);
+            }
+
+            const useNeg = useNegation;
+            const minDepth = GameState.minDerivationDepth || 1;
+
+            // Helper: build derivable candidates across current symbols
+            function buildCandidates() {
+                const c = [];
+                for (let i = 0; i < symbols.length; i++) {
+                    for (let j = 0; j < symbols.length; j++) {
+                        if (i === j) continue;
+                        const res = network.deriveRelationAndDepth(symbols[i], symbols[j]);
+                        if (res && relations.includes(res.relation) && res.depth >= minDepth) {
+                            c.push({ from: symbols[i], to: symbols[j], relation: res.relation, depth: res.depth });
+                        }
+                    }
+                }
+                return c;
+            }
+
+            const candidates = buildCandidates();
+
+            // Fallback to simple if insufficient candidates
+            if (candidates.length < 2) {
+                return generateSimpleQuestion(premises, symbols, network, relations, useNegation);
+            }
+
+            // Decide overall truth (50/50), then construct propositions to match it
+            const overallShouldBeTrue = Math.random() < 0.5;
+
+            if (op === 'IFF') {
+                // "A is to B as C is to D" is TRUE iff both pairs share the same derived relation
+                const byRel = {};
+                for (const c of candidates) {
+                    if (!byRel[c.relation]) byRel[c.relation] = [];
+                    byRel[c.relation].push(c);
+                }
+                const relKeys = Object.keys(byRel).filter(r => byRel[r].length >= 2);
+
+                let p1, p2, correctAnswer;
+                if (overallShouldBeTrue && relKeys.length > 0) {
+                    const r = pickRandom(relKeys);
+                    const two = pickMultiple(byRel[r], 2);
+                    p1 = two[0];
+                    p2 = two[1];
+                    correctAnswer = true;
+                } else {
+                    // Make it false by selecting different relations if possible
+                    const all = shuffle(candidates);
+                    p1 = all[0];
+                    p2 = all.find(x => x.relation !== p1.relation) || all[1];
+                    correctAnswer = (p1.relation === p2.relation);
+                }
+
+                // Apply NOT if needed
+                if (useNeg) correctAnswer = !correctAnswer;
+
+                const questionText = `Is it true that ${getSymbolHTML(p1.from, 'inline', 'light')} is to ${getSymbolHTML(p1.to, 'inline', 'light')} as ${getSymbolHTML(p2.from, 'inline', 'light')} is to ${getSymbolHTML(p2.to, 'inline', 'light')}${useNeg ? ' <span class="negation-text">(NOT)</span>' : ''}?`;
+
+return { question: questionText, answer: correctAnswer, negated: useNeg };
+            }
+
+            // Truth-table selection for AND / OR / XOR
+            const combos = [];
+            for (const a of [true, false]) {
+                for (const b of [true, false]) {
+                    let r;
+                    if (op === 'AND') r = (a && b);
+                    else if (op === 'OR') r = (a || b);
+                    else if (op === 'XOR') r = ((a && !b) || (!a && b));
+                    if (r === overallShouldBeTrue) combos.push([a, b]);
+                }
+            }
+            const [p1Truth, p2Truth] = pickRandom(combos);
+
+            function makeProposition(desiredTruth) {
+                const base = pickRandom(candidates);
+                const actualRel = base.relation;
+                let askedRel = actualRel;
+
+                if (!desiredTruth) {
+                    const wrong = relations.filter(r => r !== actualRel);
+                    askedRel = wrong.length ? pickRandom(wrong) : actualRel;
+                }
+
+                const relDef = RELATIONS[askedRel] || RELATIONS['coordination'];
+                const phrase = relDef ? relDef.phrase : 'is related to';
+
+                return {
+                    from: base.from,
+                    to: base.to,
+                    askedRel,
+                    actualRel,
+                    text: `(${getSymbolHTML(base.from, 'inline', 'light')} ${phrase} ${getSymbolHTML(base.to, 'inline', 'light')})`
+                };
+            }
+
+            const prop1 = makeProposition(p1Truth);
+            const prop2 = makeProposition(p2Truth);
+
+            // Compute correctAnswer from truth values, then apply NOT if enabled
+            let correctAnswer;
+            if (op === 'AND') correctAnswer = (p1Truth && p2Truth);
+            else if (op === 'OR') correctAnswer = (p1Truth || p2Truth);
+            else correctAnswer = ((p1Truth && !p2Truth) || (!p1Truth && p2Truth));
+
+            if (useNeg) correctAnswer = !correctAnswer;
+
+            const opText = (op === 'AND') ? 'AND' : (op === 'OR') ? 'OR' : 'XOR';
+
+            const questionText = `Is it true that ${prop1.text} <span class="boolean-operator">${opText}</span> ${prop2.text}${useNeg ? ' <span class="negation-text">(NOT)</span>' : ''}?`;
+
+return { question: questionText, answer: correctAnswer, negated: useNeg };
+        }
+
+        // ============================================
+        // DISPLAY FUNCTIONS
+        // ============================================
+        function renderPremisesSequentially(premises, onComplete) {
+            // Show one FULL premise at a time
+            // Time per premise is based on current difficulty (can go down to minTime)
+            const timePerPremise = Math.max(GameState.minTime, GameState.currentTime);
+            let currentIndex = 0;
+
+            function showNextPremise() {
+                if (currentIndex >= premises.length) {
+                    setTimeout(onComplete, 400);
+                    return;
+                }
+
+                const premise = premises[currentIndex];
+                DOM.cardDisplay.innerHTML = '';
+
+                // Deictic premise: render as text card
+                if (premise && premise.kind === 'deictic') {
+                    const deicticDiv = document.createElement('div');
+                    deicticDiv.className = 'deictic-premise';
+                    deicticDiv.innerHTML = premise.text || '';
+                    DOM.cardDisplay.appendChild(deicticDiv);
+
+                    currentIndex++;
+                    setTimeout(showNextPremise, timePerPremise);
+                    return;
+                }
+
+                // Relational premise: render symbol A – relation – symbol B
+                const relationDef = RELATIONS[premise.type];
+                const premiseDiv = document.createElement('div');
+                premiseDiv.className = 'premise-display';
+                const cardA = document.createElement('div');
+                cardA.className = 'card active premise-card';
+                const symbolA = SYMBOLS[premise.from];
+                cardA.innerHTML = symbolA ? symbolA.svg : '?';
+
+                const relationSpan = document.createElement('span');
+                relationSpan.className = 'premise-relation-symbol';
+                relationSpan.textContent = relationDef ? relationDef.symbol : '?';
+
+                const cardB = document.createElement('div');
+                cardB.className = 'card active premise-card';
+                const symbolB = SYMBOLS[premise.to];
+                cardB.innerHTML = symbolB ? symbolB.svg : '?';
+                premiseDiv.appendChild(cardA);
+                premiseDiv.appendChild(relationSpan);
+                premiseDiv.appendChild(cardB);
+                DOM.cardDisplay.appendChild(premiseDiv);
+
+                currentIndex++;
+                setTimeout(showNextPremise, timePerPremise);
+            }
+
+            showNextPremise();
+        }
+
+        function renderQuestion(questionHTML) {
+            DOM.questionText.innerHTML = questionHTML;
+        }
+
+        function updateUI() {
+            DOM.scoreDisplay.textContent = GameState.score.toLocaleString();
+            DOM.levelDisplay.textContent = GameState.level;
+            DOM.streakDisplay.textContent = GameState.streak;
+            DOM.blockProgress.textContent = `${GameState.blockTrials}/20`;
+
+            if (GameState.mode === TRAINING_MODES.DEICTIC) {
+                const stage = DEICTIC_STAGES[Math.min(GameState.deicticStage - 1, DEICTIC_STAGES.length - 1)];
+                DOM.mechanicLevel.textContent = `Deictic Stage ${GameState.deicticStage} - ${stage.name}`;
+                DOM.currentMechanic.textContent = `Resp ≤ ${Math.round((GameState.responseTimeLimitMs || 8000) / 1000)}s`;
+            } else {
+                const mechanic = MECHANICS[Math.min(GameState.mechanicLevel - 1, MECHANICS.length - 1)];
+                DOM.mechanicLevel.textContent = `Mechanic ${GameState.mechanicLevel} - ${mechanic.name}`;
+                DOM.currentMechanic.textContent = `${mechanic.relations.join(', ').substring(0, 30)}... | Depth≥${GameState.minDerivationDepth} | Resp≤${Math.round((GameState.responseTimeLimitMs || 8000)/1000)}s`;
+            }
+
+            // Speed progress (inverse - full bar at max speed)
+            const denom = (GameState.baseTime - GameState.minTime) || 1;
+            const speedPercent = Math.max(0, Math.min(100, ((GameState.baseTime - GameState.currentTime) / denom) * 100));
+            DOM.speedProgress.style.width = `${speedPercent}%`;
+        }
+
+        // ============================================
+        // TIMING SYSTEM
+        // ============================================
+        function startStimulusTimer() {
+            GameState.phase = 'stimulus';
+            GameState.trialStartTime = performance.now();
+            
+            // Update phase indicator
+            DOM.phaseIndicator.textContent = 'Memorize';
+            DOM.phaseIndicator.style.color = 'var(--accent-cyan)';
+            
+            // Reset timer bar
+            DOM.timerFill.style.transition = 'none';
+            DOM.timerFill.style.width = '100%';
+            DOM.timerFill.className = 'timer-fill';
+            
+            // Force reflow
+            DOM.timerFill.offsetHeight;
+            
+            // Animate timer down
+            DOM.timerFill.style.transition = `width ${GameState.currentTime}ms linear`;
+            DOM.timerFill.style.width = '0%';
+            
+            // Warning colors
+            setTimeout(() => {
+                if (GameState.phase === 'stimulus') {
+                    DOM.timerFill.classList.add('warning');
+                }
+            }, GameState.currentTime * 0.5);
+            
+            setTimeout(() => {
+                if (GameState.phase === 'stimulus') {
+                    DOM.timerFill.classList.add('danger');
+                }
+            }, GameState.currentTime * 0.75);
+            
+            // When stimulus time ends, transition to response phase
+            GameState.timerInterval = setTimeout(() => {
+                if (GameState.isRunning && !GameState.isPaused && GameState.phase === 'stimulus') {
+                    transitionToResponse();
+                }
+            }, GameState.currentTime);
+        }
+
+        function transitionToResponse() {
+            GameState.phase = 'response';
+            GameState.responseStartTime = performance.now();
+
+            // Update phase indicator
+            DOM.phaseIndicator.textContent = 'Answer';
+            DOM.phaseIndicator.style.color = 'var(--accent-magenta)';
+
+            // Show question where cards were (in cardDisplay area)
+            DOM.cardDisplay.innerHTML = `
+                <div class="question-inline">
+                    <div class="question-text">${GameState.currentTrial.question}</div>
+                    <div class="answer-buttons-inline">
+                        <button class="answer-btn true" id="btnTrueInline">TRUE</button>
+                        <button class="answer-btn false" id="btnFalseInline">FALSE</button>
+                    </div>
+                </div>
+            `;
+
+            const btnT = document.getElementById('btnTrueInline');
+            const btnF = document.getElementById('btnFalseInline');
+            if (btnT) btnT.addEventListener('click', () => handleAnswer(true));
+            if (btnF) btnF.addEventListener('click', () => handleAnswer(false));
+
+            // Hide the original question container
+            DOM.questionContainer.classList.remove('visible');
+
+            // Start response timer (hard deadline)
+            stopTimer();
+            const limitMs = Math.max(1500, GameState.responseTimeLimitMs || 8000);
+
+            DOM.timerFill.style.transition = 'none';
+            DOM.timerFill.style.width = '100%';
+            DOM.timerFill.className = 'timer-fill';
+            DOM.timerFill.offsetHeight;
+
+            DOM.timerFill.style.transition = `width ${limitMs}ms linear`;
+            DOM.timerFill.style.width = '0%';
+
+            setTimeout(() => {
+                if (GameState.phase === 'response') DOM.timerFill.classList.add('warning');
+            }, limitMs * 0.5);
+
+            setTimeout(() => {
+                if (GameState.phase === 'response') DOM.timerFill.classList.add('danger');
+            }, limitMs * 0.75);
+
+            GameState.responseTimeoutId = setTimeout(() => {
+                if (GameState.isRunning && !GameState.isPaused && GameState.phase === 'response') {
+                    handleAnswer(null, { timedOut: true });
+                }
+            }, limitMs);
+        }
+
+        function stopTimer() {
+            if (GameState.timerInterval) {
+                clearTimeout(GameState.timerInterval);
+                GameState.timerInterval = null;
+            }
+            if (GameState.responseTimeoutId) {
+                clearTimeout(GameState.responseTimeoutId);
+                GameState.responseTimeoutId = null;
+            }
+        }
+
+        // ============================================
+        // SCORING SYSTEM
+        // ============================================
+        function calculateScore(correct, responseTime) {
+            const difficultyLevel = (GameState.mode === TRAINING_MODES.DEICTIC)
+                ? (GameState.deicticStage || 1)
+                : (GameState.mechanicLevel || 1);
+
+            if (!correct) {
+                // Penalty for wrong answer - scales with difficulty
+                const penalty = Math.floor(50 * (1 + difficultyLevel * 0.3));
+                return -penalty;
+            }
+
+            // Base score by difficulty level
+            const baseScore = 100 * difficultyLevel;
+
+            // Stimulus difficulty multiplier (shorter exposure = harder = more points)
+            const denom = (GameState.baseTime - GameState.minTime) || 1;
+            const stimulusDifficulty = 1 + ((GameState.baseTime - GameState.currentTime) / denom) * 2;
+
+            // Streak multiplier (max 5x)
+            const streakMultiplier = Math.min(1 + (GameState.streak * 0.25), 5);
+
+            // Response time bonus - secondary to accuracy
+            const responseBonus = Math.max(1, 1.5 - (responseTime / 10000));
+
+            // Complexity multiplier
+            const difficultyMultiplier = 1 + (difficultyLevel * 0.15);
+
+            return Math.floor(
+                baseScore * stimulusDifficulty * streakMultiplier * responseBonus * difficultyMultiplier
+            );
+        }
+
+        // ============================================
+        // GAME FLOW
+        // ============================================
+        function startGame() {
+            loadStats();
+            loadProgress();
+
+            // Ensure mode buttons reflect saved mode
+            if (GameState.mode !== TRAINING_MODES.DEICTIC && GameState.mode !== TRAINING_MODES.RELATIONAL) {
+                GameState.mode = TRAINING_MODES.RELATIONAL;
+            }
+            setMode(GameState.mode);
+
+            GameState.isRunning = true;
+            GameState.isPaused = false;
+            GameState.blockTrials = 0;
+            GameState.blockCorrect = 0;
+            GameState.blockTotalTime = 0;
+            GameState.blockResponseTimes = [];
+            GameState.blockTimeouts = 0;
+            GameState.pendingProgression = null;
+
+            DOM.startScreen.classList.add('hidden');
+            DOM.blockComplete.classList.add('hidden');
+            DOM.gameScreen.classList.remove('hidden');
+
+            updateUI();
+            nextTrial();
+        }
+
+        function nextTrial() {
+            if (!GameState.isRunning || GameState.isPaused) return;
+
+            // Check for block completion
+            if (GameState.blockTrials >= 20) {
+                showBlockComplete();
+                return;
+            }
+
+            applyStageParameters();
+            stopTimer();
+
+            // Generate new trial based on selected mode
+            if (GameState.mode === TRAINING_MODES.DEICTIC) {
+                GameState.currentTrial = generateDeicticTrial();
+            } else {
+                GameState.currentTrial = generateTrial();
+            }
+
+            GameState.phase = 'stimulus';
+            GameState.trialStartTime = performance.now();
+            GameState.stimulusStartTime = GameState.trialStartTime;
+
+            // Update phase indicator
+            DOM.phaseIndicator.textContent = 'Memorize';
+            DOM.phaseIndicator.style.color = 'var(--accent-cyan)';
+
+            // Re-enable legacy buttons (inline buttons will be recreated later)
+            DOM.btnTrue.disabled = false;
+            DOM.btnFalse.disabled = false;
+
+            // Calculate total display time based on number of premises
+            const numPremises = GameState.currentTrial.premises.length;
+            const timePerPremise = Math.max(GameState.minTime, GameState.currentTime);
+            const totalDisplayTime = timePerPremise * numPremises + 400; // +400 for final pause
+
+            // Start timer bar animation for total duration
+            DOM.timerFill.style.transition = 'none';
+            DOM.timerFill.style.width = '100%';
+            DOM.timerFill.className = 'timer-fill';
+            DOM.timerFill.offsetHeight; // Force reflow
+            DOM.timerFill.style.transition = `width ${totalDisplayTime}ms linear`;
+            DOM.timerFill.style.width = '0%';
+
+            setTimeout(() => {
+                if (GameState.phase === 'stimulus') DOM.timerFill.classList.add('warning');
+            }, totalDisplayTime * 0.5);
+
+            setTimeout(() => {
+                if (GameState.phase === 'stimulus') DOM.timerFill.classList.add('danger');
+            }, totalDisplayTime * 0.75);
+
+            // Render premises sequentially, then automatically transition to response
+            renderPremisesSequentially(GameState.currentTrial.premises, transitionToResponse);
+        }
+
+        function handleAnswer(answer, meta = {}) {
+            if (GameState.phase !== 'response') return;
+
+            const timedOut = !!meta.timedOut;
+
+            GameState.phase = 'feedback';
+            stopTimer();
+
+            const now = performance.now();
+            const responseTime = Math.max(0, now - (GameState.responseStartTime || GameState.trialStartTime || now));
+            const correct = (!timedOut) && (answer === GameState.currentTrial.correctAnswer);
+
+            // Disable buttons (inline + legacy)
+            DOM.btnTrue.disabled = true;
+            DOM.btnFalse.disabled = true;
+            const btnT = document.getElementById('btnTrueInline');
+            const btnF = document.getElementById('btnFalseInline');
+            if (btnT) btnT.disabled = true;
+            if (btnF) btnF.disabled = true;
+
+            // Update stats (response-time only)
+            GameState.blockTrials++;
+            GameState.totalTrials++;
+            GameState.blockTotalTime += responseTime;
+
+            if (!Array.isArray(GameState.blockResponseTimes)) GameState.blockResponseTimes = [];
+            GameState.blockResponseTimes.push(Math.round(responseTime));
+            if (timedOut) GameState.blockTimeouts = (GameState.blockTimeouts || 0) + 1;
+
+            if (correct) {
+                GameState.streak++;
+                GameState.maxStreak = Math.max(GameState.maxStreak, GameState.streak);
+                GameState.blockCorrect++;
+                GameState.totalCorrect++;
+                GameState.level++;
+
+                // Decrease stimulus time for next trial
+                GameState.currentTime = Math.max(GameState.minTime, GameState.currentTime - GameState.timeDecrement);
+            } else {
+                GameState.streak = 0;
+                GameState.level = Math.max(1, GameState.level - 1);
+
+                // Increase stimulus time slightly on wrong answer (timeouts push harder)
+                const bump = timedOut ? 60 : 20;
+                GameState.currentTime = Math.min(GameState.baseTime, GameState.currentTime + bump);
+            }
+
+            // Calculate and apply score
+            const points = calculateScore(correct, responseTime);
+            GameState.score = Math.max(0, GameState.score + points);
+
+            // Visual feedback
+            showFeedback(correct, points);
+
+            // Update UI
+            updateUI();
+
+            // Save progress
+            saveProgress();
+
+            // Next trial after brief delay
+            setTimeout(() => {
+                GameState.phase = 'idle';
+                nextTrial();
+            }, 600);
+        }
+
+        function unlockNextMechanic() {
+            if (GameState.mechanicLevel < MECHANICS.length) {
+                GameState.mechanicLevel++;
+                GameState.currentTime = GameState.baseTime; // Reset time
+                
+                // Show unlock notification
+                showNotification(`Mechanic Unlocked: ${MECHANICS[GameState.mechanicLevel - 1].name}`);
+            }
+        }
+
+        function showFeedback(correct, points) {
+            // Overlay flash
+            DOM.feedbackOverlay.className = 'feedback-overlay ' + (correct ? 'correct' : 'incorrect');
+            setTimeout(() => {
+                DOM.feedbackOverlay.className = 'feedback-overlay';
+            }, 200);
+            
+            // Points popup
+            DOM.pointsPopup.textContent = (points >= 0 ? '+' : '') + points;
+            DOM.pointsPopup.className = 'points-popup show ' + (points >= 0 ? 'positive' : 'negative');
+            setTimeout(() => {
+                DOM.pointsPopup.className = 'points-popup';
+            }, 1000);
+        }
+
+        function showNotification(message) {
+            // Could be enhanced with a proper notification system
+            console.log(message);
+        }
+
+        function showBlockComplete() {
+            GameState.isPaused = true;
+            DOM.gameScreen.classList.add('hidden');
+            DOM.blockComplete.classList.remove('hidden');
+
+            const trials = GameState.blockTrials || 0;
+            const accuracy = trials > 0 ? Math.round((GameState.blockCorrect / trials) * 100) : 0;
+            const avgTime = trials > 0 ? Math.round(GameState.blockTotalTime / trials) : 0;
+
+            const times = Array.isArray(GameState.blockResponseTimes) ? [...GameState.blockResponseTimes].sort((a, b) => a - b) : [];
+            const medianTime = times.length ? times[Math.floor(times.length / 2)] : 0;
+
+            const timeouts = GameState.blockTimeouts || 0;
+            const limitMs = Math.max(1500, GameState.responseTimeLimitMs || 8000);
+
+            // Mastery rule: high accuracy + reasonably fast under a hard deadline
+            const mastery = (accuracy >= 85) && (medianTime <= limitMs * 0.85) && (timeouts <= 1);
+
+            if (mastery) {
+                GameState.masteryBlocksInRow = (GameState.masteryBlocksInRow || 0) + 1;
+            } else {
+                GameState.masteryBlocksInRow = 0;
+            }
+
+            // Stage decision (applied when continuing)
+            let decisionText = 'Stay';
+            GameState.pendingProgression = null;
+
+            if (GameState.masteryBlocksInRow >= 2) {
+                GameState.pendingProgression = { delta: +1, reason: '2 mastered blocks' };
+                decisionText = 'Advance +1';
+                GameState.masteryBlocksInRow = 0;
+            } else if (accuracy < 65) {
+                GameState.pendingProgression = { delta: -1, reason: 'Low accuracy' };
+                decisionText = 'Step back -1';
+                GameState.masteryBlocksInRow = 0;
+            } else {
+                const need = 2 - (GameState.masteryBlocksInRow || 0);
+                decisionText = `Stay (need ${need} mastered block${need === 1 ? '' : 's'})`;
+            }
+
+            DOM.blockStats.innerHTML = `
+                <div class="block-stat">
+                    <div class="block-stat-label">Accuracy</div>
+                    <div class="block-stat-value">${accuracy}%</div>
+                </div>
+                <div class="block-stat">
+                    <div class="block-stat-label">Avg Response</div>
+                    <div class="block-stat-value">${avgTime}ms</div>
+                </div>
+                <div class="block-stat">
+                    <div class="block-stat-label">Median Response</div>
+                    <div class="block-stat-value">${medianTime}ms</div>
+                </div>
+                <div class="block-stat">
+                    <div class="block-stat-label">Timeouts</div>
+                    <div class="block-stat-value">${timeouts}</div>
+                </div>
+                <div class="block-stat">
+                    <div class="block-stat-label">Best Streak</div>
+                    <div class="block-stat-value">${GameState.maxStreak}</div>
+                </div>
+                <div class="block-stat">
+                    <div class="block-stat-label">Next</div>
+                    <div class="block-stat-value">${decisionText}</div>
+                </div>
+                <div class="block-stat">
+                    <div class="block-stat-label">Block Score</div>
+                    <div class="block-stat-value">${GameState.score.toLocaleString()}</div>
+                </div>
+            `;
+
+            // Save stats and progress
+            saveStats();
+            saveProgress();
+
+            // Reset block counters
+            GameState.blockTrials = 0;
+            GameState.blockCorrect = 0;
+            GameState.blockTotalTime = 0;
+            GameState.blockResponseTimes = [];
+            GameState.blockTimeouts = 0;
+        }
+
+        function continueTraining() {
+            DOM.blockComplete.classList.add('hidden');
+            DOM.gameScreen.classList.remove('hidden');
+            GameState.isPaused = false;
+
+            // Apply pending stage change (computed at end of previous block)
+            if (GameState.pendingProgression) {
+                const delta = GameState.pendingProgression.delta || 0;
+
+                if (GameState.mode === TRAINING_MODES.DEICTIC) {
+                    const maxStage = DEICTIC_STAGES.length;
+                    GameState.deicticStage = Math.max(1, Math.min(maxStage, GameState.deicticStage + delta));
+                } else {
+                    const maxMech = MECHANICS.length;
+                    GameState.mechanicLevel = Math.max(1, Math.min(maxMech, GameState.mechanicLevel + delta));
+                }
+
+                // Reset speed when changing stage (keeps later stages challenging but learnable)
+                GameState.currentTime = GameState.baseTime;
+                GameState.streak = 0;
+                GameState.pendingProgression = null;
+
+                applyStageParameters();
+                saveProgress();
+            }
+
+            updateUI();
+            nextTrial();
+        }
+
+        // ============================================
+        // STATISTICS & PROGRESS SAVING
+        // ============================================
+        function saveStats() {
+            GameState.stats.totalTrials += GameState.blockTrials;
+            GameState.stats.totalCorrect += GameState.blockCorrect;
+            GameState.stats.totalScore = GameState.score;
+            GameState.stats.bestStreak = Math.max(GameState.stats.bestStreak, GameState.maxStreak);
+            GameState.stats.mechanicsUnlocked = Math.max(GameState.stats.mechanicsUnlocked, GameState.mechanicLevel);
+            GameState.stats.highestLevel = Math.max(GameState.stats.highestLevel, GameState.level);
+            GameState.stats.totalSessions++;
+            
+            try {
+                localStorage.setItem('rftTrainerStats', JSON.stringify(GameState.stats));
+            } catch (e) {
+                console.log('Could not save stats');
+            }
+        }
+
+        function saveProgress() {
+            const progress = {
+                score: GameState.score,
+                level: GameState.level,
+                mechanicLevel: GameState.mechanicLevel,
+                currentTime: GameState.currentTime,
+                maxStreak: GameState.maxStreak,
+                mode: GameState.mode,
+                deicticStage: GameState.deicticStage,
+                masteryBlocksInRow: GameState.masteryBlocksInRow
+            };
+            try {
+                localStorage.setItem('rftTrainerProgress', JSON.stringify(progress));
+            } catch (e) {
+                console.log('Could not save progress');
+            }
+        }
+
+        function loadStats() {
+            try {
+                const saved = localStorage.getItem('rftTrainerStats');
+                if (saved) {
+                    GameState.stats = { ...GameState.stats, ...JSON.parse(saved) };
+                }
+            } catch (e) {
+                console.log('Could not load stats');
+            }
+        }
+
+        function loadProgress() {
+            try {
+                const saved = localStorage.getItem('rftTrainerProgress');
+                if (saved) {
+                    const progress = JSON.parse(saved);
+                    GameState.score = progress.score || 0;
+                    GameState.level = progress.level || 1;
+                    GameState.mechanicLevel = progress.mechanicLevel || 1;
+                    GameState.currentTime = progress.currentTime || GameState.baseTime || 1000;
+                    GameState.maxStreak = progress.maxStreak || 0;
+
+                    GameState.mode = progress.mode || TRAINING_MODES.RELATIONAL;
+                    GameState.deicticStage = progress.deicticStage || 1;
+                    GameState.masteryBlocksInRow = progress.masteryBlocksInRow || 0;
+                }
+            } catch (e) {
+                console.log('Could not load progress');
+            }
+        }
+
+        function updateSavedProgressDisplay() {
+            const savedProgressEl = document.getElementById('savedProgress');
+            if (!savedProgressEl) return;
+
+            // Check if there's saved progress worth showing
+            const hasProgress = (GameState.score > 0 || GameState.level > 1 || GameState.mechanicLevel > 1 || GameState.deicticStage > 1);
+            if (hasProgress) {
+                let modeLabel = 'Relational';
+                let stageLabel = '';
+
+                if (GameState.mode === TRAINING_MODES.DEICTIC) {
+                    modeLabel = 'Deictic';
+                    const stage = DEICTIC_STAGES[Math.min(GameState.deicticStage - 1, DEICTIC_STAGES.length - 1)];
+                    stageLabel = stage.name;
+                } else {
+                    const mechanic = MECHANICS[Math.min(GameState.mechanicLevel - 1, MECHANICS.length - 1)];
+                    stageLabel = mechanic.name;
+                }
+
+                savedProgressEl.innerHTML = `
+                    <div class="saved-progress-title">Continue Your Progress</div>
+                    <div class="saved-progress-stats">
+                        <div class="saved-progress-stat">
+                            <div class="saved-progress-value">${GameState.score.toLocaleString()}</div>
+                            <div class="saved-progress-label">Score</div>
+                        </div>
+                        <div class="saved-progress-stat">
+                            <div class="saved-progress-value">${GameState.level}</div>
+                            <div class="saved-progress-label">Level</div>
+                        </div>
+                        <div class="saved-progress-stat">
+                            <div class="saved-progress-value">${modeLabel}</div>
+                            <div class="saved-progress-label">Mode</div>
+                        </div>
+                        <div class="saved-progress-stat">
+                            <div class="saved-progress-value">${stageLabel}</div>
+                            <div class="saved-progress-label">Stage</div>
+                        </div>
+                    </div>
+                `;
+                savedProgressEl.classList.add('visible');
+            } else {
+                savedProgressEl.classList.remove('visible');
+            }
+        }
+
+        function renderStats() {
+            const accuracy = GameState.stats.totalTrials > 0 
+                ? Math.round((GameState.stats.totalCorrect / GameState.stats.totalTrials) * 100) 
+                : 0;
+            
+            DOM.statsGrid.innerHTML = `
+                <div class="stats-card">
+                    <div class="stats-card-value">${GameState.stats.totalScore.toLocaleString()}</div>
+                    <div class="stats-card-label">Total Score</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value">${GameState.stats.totalTrials}</div>
+                    <div class="stats-card-label">Total Trials</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value">${accuracy}%</div>
+                    <div class="stats-card-label">Overall Accuracy</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value">${GameState.stats.bestStreak}</div>
+                    <div class="stats-card-label">Best Streak</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value">${GameState.stats.mechanicsUnlocked}</div>
+                    <div class="stats-card-label">Mechanics Unlocked</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value">${GameState.stats.highestLevel}</div>
+                    <div class="stats-card-label">Highest Level</div>
+                </div>
+            `;
+        }
+
+        function resetProgress() {
+            if (confirm('Are you sure you want to reset all progress? This cannot be undone.')) {
+                GameState.score = 0;
+                GameState.level = 1;
+                GameState.streak = 0;
+                GameState.maxStreak = 0;
+                GameState.mechanicLevel = 1;
+                GameState.currentTime = GameState.baseTime;
+                GameState.stats = {
+                    totalSessions: 0,
+                    totalTrials: 0,
+                    totalCorrect: 0,
+                    totalScore: 0,
+                    bestStreak: 0,
+                    averageTime: 0,
+                    timeHistory: [],
+                    mechanicsUnlocked: 1,
+                    highestLevel: 1
+                };
+                
+                try {
+                    localStorage.removeItem('rftTrainerStats');
+                    localStorage.removeItem('rftTrainerProgress');
+                } catch (e) {}
+                
+                updateUI();
+                closeAllModals();
+            }
+        }
+
+        // ============================================
+        // MODAL HANDLING
+        // ============================================
+        function openModal(modal) {
+            modal.classList.add('active');
+            if (GameState.isRunning) {
+                GameState.isPaused = true;
+                stopTimer();
+            }
+        }
+
+        function closeAllModals() {
+            DOM.menuModal.classList.remove('active');
+            DOM.guideModal.classList.remove('active');
+            DOM.statsModal.classList.remove('active');
+        }
+
+        function resumeGame() {
+            closeAllModals();
+            if (GameState.isRunning && GameState.isPaused) {
+                GameState.isPaused = false;
+                if (!DOM.gameScreen.classList.contains('hidden')) {
+                    // If we were in the middle of a trial, start a new one
+                    // (since stimulus timing would be disrupted)
+                    GameState.phase = 'idle';
+                    nextTrial();
+                }
+            }
+        }
+
+        // ============================================
+        // EVENT LISTENERS
+        // ============================================
+        document.getElementById('startBtn').addEventListener('click', startGame);
+
+        // Mode selection (on start screen)
+        const modeRelBtn = document.getElementById('modeRelationalBtn');
+        const modeDeiBtn = document.getElementById('modeDeicticBtn');
+        if (modeRelBtn) modeRelBtn.addEventListener('click', () => setMode(TRAINING_MODES.RELATIONAL));
+        if (modeDeiBtn) modeDeiBtn.addEventListener('click', () => setMode(TRAINING_MODES.DEICTIC));
+        document.getElementById('continueBtn').addEventListener('click', continueTraining);
+        
+        DOM.btnTrue.addEventListener('click', () => handleAnswer(true));
+        DOM.btnFalse.addEventListener('click', () => handleAnswer(false));
+        
+        document.getElementById('menuBtn').addEventListener('click', () => openModal(DOM.menuModal));
+        document.getElementById('closeMenu').addEventListener('click', closeAllModals);
+        document.getElementById('resumeBtn').addEventListener('click', resumeGame);
+        document.getElementById('guideBtn').addEventListener('click', () => {
+            closeAllModals();
+            openModal(DOM.guideModal);
+        });
+        document.getElementById('closeGuide').addEventListener('click', closeAllModals);
+        document.getElementById('statsBtn').addEventListener('click', () => {
+            closeAllModals();
+            renderStats();
+            openModal(DOM.statsModal);
+        });
+        document.getElementById('closeStats').addEventListener('click', closeAllModals);
+        document.getElementById('resetBtn').addEventListener('click', resetProgress);
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (DOM.menuModal.classList.contains('active') || 
+                    DOM.guideModal.classList.contains('active') || 
+                    DOM.statsModal.classList.contains('active')) {
+                    closeAllModals();
+                    resumeGame();
+                } else {
+                    openModal(DOM.menuModal);
+                }
+            }
+            
+            // Only accept answers during response phase
+            if (GameState.phase === 'response' && !GameState.isPaused) {
+                if (e.key === 'ArrowLeft') {
+                    handleAnswer(true);
+                    e.preventDefault();
+                } else if (e.key === 'ArrowRight') {
+                    handleAnswer(false);
+                    e.preventDefault();
+                }
+            }
+        });
+
+        // Initialize
+        loadStats();
+        loadProgress();
+
+        if (GameState.mode !== TRAINING_MODES.DEICTIC && GameState.mode !== TRAINING_MODES.RELATIONAL) {
+            GameState.mode = TRAINING_MODES.RELATIONAL;
+        }
+        setMode(GameState.mode);
+
+        updateSavedProgressDisplay();
+        updateUI();
+    </script>
+</body>
+</html>
